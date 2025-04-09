@@ -1,3 +1,4 @@
+from menu import Menu
 import tkinter as tk
 from tkinter import ttk, messagebox
 import datetime
@@ -23,7 +24,7 @@ class HotelManagementSystem:
         self.root.geometry("1000x700")
         self.config_file = "hotel_config.json"
         
-        # 見積書保存用のディレクトリ
+         # 見積書保存用のディレクトリ
         self.quotes_dir = "quotes"
         if not os.path.exists(self.quotes_dir):
             os.makedirs(self.quotes_dir)
@@ -40,12 +41,9 @@ class HotelManagementSystem:
         # 料金データの読み込み
         self.load_pricing_data()
         
-        # メニュー画面の作成
-        self.create_menu_screen()
-    
+        self.show_quote_screen()
+        
     def load_pricing_data(self):
-        # 実際のアプリケーションではファイルやデータベースから読み込む
-        # 今回は画像に基づいてハードコーディング
         self.pricing = {
             "room_types": {
                 "1-2_和室": {"八幡ポーク": 12400, "岩手県産": 15400, "前沢牛": 18400, "素泊まり": 8500},
@@ -57,7 +55,7 @@ class HotelManagementSystem:
                 "2-6_1F西館和室": {"八幡ポーク": 12400, "岩手県産": 15400, "前沢牛": 21400, "素泊まり": None},
                 "2-6_西館和室20畳": {"八幡ポーク": 12400, "岩手県産": 15400, "前沢牛": 21400, "素泊まり": None},
             },
-            "child_price": 7200,  # 子供料金は一律
+            "child_price": 7200,  
             "early_booking_discount": {
                 60: 0.10,  # 60日前: 10%割引
                 90: 0.15   # 90日前: 15%割引
@@ -65,36 +63,10 @@ class HotelManagementSystem:
             "saturday_surcharge": 2000  # 土曜日追加料金
         }
     
-    def create_menu_screen(self):
-        # 以前の画面をクリア
-        for widget in self.root.winfo_children():
-            widget.destroy()
-            
-        # メインメニューフレームの作成
-        menu_frame = tk.Frame(self.root, padx=20, pady=20)
-        menu_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # タイトル
-        title_label = tk.Label(menu_frame, text="ホテル管理システム", font=("Helvetica", 18, "bold"))
-        title_label.pack(pady=20)
-        
-        # メニューボタン
-        btn_width = 30
-        btn_height = 2
-        
-        create_quote_btn = tk.Button(menu_frame, text="宿泊見積作成", width=btn_width, height=btn_height,
-                                    command=self.show_quote_screen, bg="#4CAF50", fg="white")
-        create_quote_btn.pack(pady=10)
-        
-        exit_btn = tk.Button(menu_frame, text="終了", width=btn_width, height=btn_height,
-                            command=self.root.destroy, bg="#F44336", fg="white")
-        exit_btn.pack(pady=10)
     
     def show_quote_screen(self):
-        # 以前の画面をクリア
         for widget in self.root.winfo_children():
             widget.destroy()
-
         # メインフレーム
         quote_frame = tk.Frame(self.root, padx=20, pady=20)
         quote_frame.pack(fill=tk.BOTH, expand=True)
@@ -216,24 +188,7 @@ class HotelManagementSystem:
 
         return_btn = tk.Button(buttons_frame, text="メニューに戻る", command=self.create_menu_screen, bg="#F44336", fg="white", width=15, height=2)
         return_btn.pack(side=tk.RIGHT, padx=10)
-        
-        # キャンバスの内容のサイズが変わったときに、スクロール領域を調整
-        quote_frame.update_idletasks()
-        canvas.config(scrollregion=canvas.bbox("all"))
-        
-        # ウィンドウサイズに合わせてキャンバスの幅を調整
-        def _configure_canvas(event):
-            canvas.configure(scrollregion=canvas.bbox("all"))
-            canvas.itemconfig(canvas.find_withtag("all")[0], width=event.width)
-        
-        canvas.bind("<Configure>", _configure_canvas)
-        
-        # マウスホイールでスクロールするイベントバインディング
-        def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-        
-        # プラットフォームによって異なるマウスホイールイベントを処理
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)  # Windows
+
     
     def calculate_quote(self):
         self.results_text.configure(state="normal")
@@ -255,6 +210,7 @@ class HotelManagementSystem:
                 return
             
             # 基本料金の計算
+
             base_cost_per_adult = self.pricing["room_types"][room_type][meal_plan]
             child_cost = self.pricing["child_price"]
             
@@ -307,6 +263,7 @@ class HotelManagementSystem:
             self.results_text.delete(1.0, tk.END)
             self.results_text.insert(tk.END, result)
             self.results_text.configure(state="disabled")
+            
             # 見積結果を保存（メール送信時に使用）
             self.quote_result = result
             
@@ -350,7 +307,6 @@ class HotelManagementSystem:
         except Exception as e:
             messagebox.showerror("エラー", f"計算中にエラーが発生しました: {str(e)}")
             self.results_text.configure(state="disabled")
-
     # 設定ファイル関連のメソッドは残すが、簡略化する
     def load_email_config(self):
         # メール設定は固定のため、設定ファイルからの読み込みは行わない
@@ -443,6 +399,7 @@ Email: {self.email_config["sender"]}
             messagebox.showerror("エラー", f"メール送信中にエラーが発生しました: {str(e)}")
             return False
 
+            
     def show_quote_sent(self):
         # メール送信を試みる
         if hasattr(self, 'quote_result'):
@@ -492,9 +449,34 @@ Email: {self.email_config["sender"]}
                             bg="#2196F3", fg="white",
                             width=20, height=2)
         return_btn.pack(pady=20)
-
-
+        
+    def create_menu_screen(self):
+        for widget in self.root.winfo_children():
+            widget.destroy()
+        Menu(self.root)
+        
 if __name__ == "__main__":
     root = tk.Tk()
     app = HotelManagementSystem(root)
     root.mainloop()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
