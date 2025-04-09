@@ -1,9 +1,0 @@
-{
-    "email_config": {
-        "smtp_server": "smtp.example.com",
-        "smtp_port": 587,
-        "username": "y.mukaiguchi.sys24@morijyobi.ac.jp",
-        "password": "",
-        "sender": "y.mukaiguchi.sys24@morijyobi.ac.jp"
-    }
-}
