@@ -10,7 +10,6 @@ from email.mime.text import MIMEText
 from email.utils import formatdate
 
 
-
 # 日本語の日付フォーマット用にロケールを設定
 try:
     locale.setlocale(locale.LC_ALL, 'ja_JP.UTF-8')
@@ -23,17 +22,21 @@ class HotelManagementSystem:
         self.root.title("ホテル管理システム")
         self.root.geometry("1000x700")
         self.config_file = "hotel_config.json"
-        # デフォルトのメール設定
+        
+        # 見積書保存用のディレクトリ
+        self.quotes_dir = "quotes"
+        if not os.path.exists(self.quotes_dir):
+            os.makedirs(self.quotes_dir)
+        
+        # メール設定を固定値に設定（メール設定画面を削除）
         self.email_config = {
-            "smtp_server": "smtp.example.com",
+            "smtp_server": "smtp.gmail.com",
             "smtp_port": 587,
             "username": "y.mukaiguchi.sys24@morijyobi.ac.jp",
-            "password": "",
+            "password": "iioy yrtg hxff eknq",
             "sender": "y.mukaiguchi.sys24@morijyobi.ac.jp"
         }
-
-        # 設定ファイルがあれば読み込む
-        self.load_email_config()
+        
         # 料金データの読み込み
         self.load_pricing_data()
         
@@ -231,15 +234,6 @@ class HotelManagementSystem:
         
         # プラットフォームによって異なるマウスホイールイベントを処理
         canvas.bind_all("<MouseWheel>", _on_mousewheel)  # Windows
-        
-        # Linuxの場合は以下も追加するとよい（コメントアウト）
-        # canvas.bind_all("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))
-        # canvas.bind_all("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))
-        
-        # Macの場合の対応（必要に応じて）
-        # def _on_mousewheel_mac(event):
-        #     canvas.yview_scroll(-1 * event.delta, "units")
-        # canvas.bind_all("<MouseWheel>", _on_mousewheel_mac)  # Mac
     
     def calculate_quote(self):
         self.results_text.configure(state="normal")
@@ -315,7 +309,38 @@ class HotelManagementSystem:
             self.results_text.configure(state="disabled")
             # 見積結果を保存（メール送信時に使用）
             self.quote_result = result
-            # 予約情報を保存
+            
+            # JSONに保存するための詳細情報を保存
+            self.quote_details = {
+                "customer": {
+                    "name": self.customer_name.get(),
+                    "email": self.customer_email.get(),
+                    "phone": self.customer_phone.get()
+                },
+                "reservation": {
+                    "room_type": room_type,
+                    "meal_plan": meal_plan,
+                    "checkin": checkin.strftime("%Y-%m-%d"),
+                    "checkout": checkout.strftime("%Y-%m-%d"),
+                    "nights": nights,
+                    "adults": num_adults,
+                    "children": num_children
+                },
+                "pricing": {
+                    "adult_rate": base_cost_per_adult,
+                    "child_rate": child_cost,
+                    "adult_total": adult_cost,
+                    "children_total": children_cost,
+                    "saturday_surcharge": saturday_surcharge,
+                    "discount_rate": discount_rate,
+                    "discount_amount": discount_amount,
+                    "subtotal": total_before_discount,
+                    "total": total_after_discount
+                },
+                "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            
+            # 予約情報を保存（簡易表示用）
             self.reservation_info = {
                 "customer_name": self.customer_name.get(),
                 "customer_email": self.customer_email.get(),
@@ -326,112 +351,97 @@ class HotelManagementSystem:
             messagebox.showerror("エラー", f"計算中にエラーが発生しました: {str(e)}")
             self.results_text.configure(state="disabled")
 
-
+    # 設定ファイル関連のメソッドは残すが、簡略化する
     def load_email_config(self):
-        try:
-            if os.path.exists(self.config_file):
-                with open(self.config_file, 'r', encoding='utf-8') as f:
-                    config_data = json.load(f)
-                    if 'email_config' in config_data:
-                        self.email_config = config_data['email_config']
-                        print("メール設定を読み込みました")
-        except Exception as e:
-            print(f"設定ファイルの読み込みエラー: {str(e)}")
+        # メール設定は固定のため、設定ファイルからの読み込みは行わない
+        pass
 
     def save_email_config(self):
-      try:
-          # 既存の設定を読み込み（あれば）
-          config_data = {}
-          if os.path.exists(self.config_file):
-              with open(self.config_file, 'r', encoding='utf-8') as f:
-                  config_data = json.load(f)
-          
-          # メール設定を更新
-          config_data['email_config'] = self.email_config
-          
-          # ファイルに保存
-          with open(self.config_file, 'w', encoding='utf-8') as f:
-              json.dump(config_data, f, ensure_ascii=False, indent=4)
-          
-          print("メール設定を保存しました")
-          return True
-      except Exception as e:
-          print(f"設定ファイルの保存エラー: {str(e)}")
-          return False
-      
-      # save_email_settingsメソッドの修正部分
-    def save_email_settings(self):
-        # 入力値を取得して設定を更新
+        # メール設定は固定のため、設定ファイルへの保存は行わない
+        return True
+    
+    # 新しく追加: 見積書をJSONファイルに保存する関数
+    def save_quote_to_json(self):
+        if not hasattr(self, 'quote_details'):
+            return False
+        
         try:
-            self.email_config["smtp_server"] = self.smtp_server.get()
-            self.email_config["smtp_port"] = int(self.smtp_port.get())
-            self.email_config["username"] = self.email_username.get()
-            self.email_config["password"] = self.email_password.get()
-            self.email_config["sender"] = self.email_sender.get()
+            # ファイル名を生成 (顧客名_日付_時間.json)
+            customer_name = self.quote_details["customer"]["name"]
+            # 空白やファイル名に使えない文字を置換
+            safe_name = "".join(c if c.isalnum() or c in ['-', '_'] else '_' for c in customer_name)
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"{safe_name}_{timestamp}.json"
+            filepath = os.path.join(self.quotes_dir, filename)
             
-            # 設定をJSONファイルに保存
-            if self.save_email_config():
-                messagebox.showinfo("成功", "メール設定が保存されました。")
-            else:
-                messagebox.showerror("エラー", "設定の保存に失敗しました。")
+            # JSONファイルに保存
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(self.quote_details, f, ensure_ascii=False, indent=4)
+            
+            return filepath
+        
         except Exception as e:
-            messagebox.showerror("エラー", f"設定の保存に失敗しました: {str(e)}")
+            print(f"見積書保存エラー: {str(e)}")
+            return False
 
     def send_email_quote(self):
-          # メールアドレスが入力されているか確認
-          customer_email = self.customer_email.get().strip()
-          if not customer_email:
-              messagebox.showerror("エラー", "メールアドレスを入力してください。")
-              return False
+        # メールアドレスが入力されているか確認
+        customer_email = self.customer_email.get().strip()
+        if not customer_email:
+            messagebox.showerror("エラー", "メールアドレスを入力してください。")
+            return False
           
-          # 見積が計算されているか確認
-          if not hasattr(self, 'quote_result'):
-              messagebox.showerror("エラー", "先に見積計算を行ってください。")
-              return False
+        # 見積が計算されているか確認
+        if not hasattr(self, 'quote_result'):
+            messagebox.showerror("エラー", "先に見積計算を行ってください。")
+            return False
           
-          try:
-              # メール作成
-              msg = MIMEMultipart()
-              msg['From'] = self.email_config["sender"]
-              msg['To'] = customer_email
-              msg['Date'] = formatdate()
-              msg['Subject'] = f"【ホテル予約】{self.customer_name.get()} 様 宿泊見積"
+        try:
+            # メール作成
+            msg = MIMEMultipart()
+            msg['From'] = self.email_config["sender"]
+            msg['To'] = customer_email
+            msg['Date'] = formatdate()
+            msg['Subject'] = f"【ホテル予約】{self.customer_name.get()} 様 宿泊見積"
               
-              # メール本文の作成
-              body = f"""
-      {self.customer_name.get()} 様
+            # メール本文の作成
+            body = f"""
+{self.customer_name.get()} 様
 
-      この度はお問い合わせいただき、誠にありがとうございます。
-      ご希望の宿泊プランの見積をお送りいたします。
+この度はお問い合わせいただき、誠にありがとうございます。
+ご希望の宿泊プランの見積をお送りいたします。
 
-      ====================
-      {self.quote_result}
-      ====================
+====================
+{self.quote_result}
+====================
 
-      ご予約やご質問がございましたら、お気軽にお問い合わせください。
-      お客様のご来館を心よりお待ちしております。
+ご予約やご質問がございましたら、お気軽にお問い合わせください。
+お客様のご来館を心よりお待ちしております。
 
-      --
-      ホテル〇〇
-      TEL: 000-000-0000
-      Email: {self.email_config["sender"]}
-              """
+--
+ホテル〇〇
+TEL: 000-000-0000
+Email: {self.email_config["sender"]}
+            """
               
-              msg.attach(MIMEText(body, 'plain', 'utf-8'))
+            msg.attach(MIMEText(body, 'plain', 'utf-8'))
               
-              # SMTPサーバーに接続してメール送信
-              with smtplib.SMTP(self.email_config["smtp_server"], self.email_config["smtp_port"]) as server:
-                  server.ehlo()
-                  server.starttls()
-                  server.ehlo()
-                  server.login(self.email_config["username"], self.email_config["password"])
-                  server.send_message(msg)
+            # SMTPサーバーに接続してメール送信
+            with smtplib.SMTP(self.email_config["smtp_server"], self.email_config["smtp_port"]) as server:
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                server.login(self.email_config["username"], self.email_config["password"])
+                server.send_message(msg)
+            
+            # 送信先メールアドレスを保存（画面遷移後に使用するため）
+            self.sent_email = customer_email
               
-              return True
+            return True
               
-          except Exception as e:
-              messagebox.showerror("エラー", f"メール送信中にエラーが発生しました: {str(e)}")
-              return False
+        except Exception as e:
+            messagebox.showerror("エラー", f"メール送信中にエラーが発生しました: {str(e)}")
+            return False
 
     def show_quote_sent(self):
         # メール送信を試みる
@@ -440,6 +450,9 @@ class HotelManagementSystem:
             if not success:
                 # メール送信に失敗した場合は、関数を終了
                 return
+            
+            # メール送信成功後、見積書をJSONファイルに保存
+            json_filepath = self.save_quote_to_json()
         else:
             messagebox.showerror("エラー", "先に見積計算を行ってください。")
             return
@@ -459,10 +472,18 @@ class HotelManagementSystem:
                               fg="#4CAF50")
         success_label.pack(pady=20)
         
+        # メール送信成功メッセージ
         details_label = tk.Label(conf_frame, 
-                              text=f"{self.customer_email.get()} 宛にメールで見積もりが送信されました。",
+                              text=f"{self.sent_email} 宛にメールで見積もりが送信されました。",
                               font=("Helvetica", 12))
         details_label.pack(pady=10)
+        
+        # JSONファイル保存成功メッセージ
+        if json_filepath:
+            json_label = tk.Label(conf_frame,
+                               text=f"見積書データが {os.path.basename(json_filepath)} に保存されました。",
+                               font=("Helvetica", 12))
+            json_label.pack(pady=10)
         
         # メニューに戻るボタン
         return_btn = tk.Button(conf_frame, 
@@ -471,179 +492,6 @@ class HotelManagementSystem:
                             bg="#2196F3", fg="white",
                             width=20, height=2)
         return_btn.pack(pady=20)
-
-    # メール設定画面を追加
-    def show_email_settings(self):
-        # 以前の画面をクリア
-        for widget in self.root.winfo_children():
-            widget.destroy()
-            
-        # メインフレームとキャンバス、スクロールバーを作成
-        main_frame = tk.Frame(self.root)
-        main_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # キャンバスとスクロールバーを作成
-        canvas = tk.Canvas(main_frame)
-        scrollbar = tk.Scrollbar(main_frame, orient=tk.VERTICAL, command=canvas.yview)
-        
-        # スクロールバーとキャンバスを配置
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        canvas.configure(yscrollcommand=scrollbar.set)
-        
-        # キャンバス内にフレームを作成
-        settings_frame = tk.Frame(canvas)
-        canvas.create_window((0, 0), window=settings_frame, anchor="nw")
-        
-        # タイトル
-        title_label = tk.Label(settings_frame, text="メール設定", font=("Helvetica", 16, "bold"))
-        title_label.pack(pady=10)
-        
-        # 設定フォーム
-        form_frame = tk.LabelFrame(settings_frame, text="SMTPサーバー設定", padx=10, pady=10)
-        form_frame.pack(fill=tk.X, pady=10)
-        
-        # 設定フィールド
-        tk.Label(form_frame, text="SMTPサーバー:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
-        self.smtp_server = tk.Entry(form_frame, width=40)
-        self.smtp_server.insert(0, self.email_config["smtp_server"])
-        self.smtp_server.grid(row=0, column=1, sticky=tk.W, padx=5, pady=5)
-        
-        tk.Label(form_frame, text="SMTPポート:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
-        self.smtp_port = tk.Entry(form_frame, width=10)
-        self.smtp_port.insert(0, str(self.email_config["smtp_port"]))
-        self.smtp_port.grid(row=1, column=1, sticky=tk.W, padx=5, pady=5)
-        
-        tk.Label(form_frame, text="ユーザー名:").grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
-        self.email_username = tk.Entry(form_frame, width=40)
-        self.email_username.insert(0, self.email_config["username"])
-        self.email_username.grid(row=2, column=1, sticky=tk.W, padx=5, pady=5)
-        
-        tk.Label(form_frame, text="パスワード:").grid(row=3, column=0, sticky=tk.W, padx=5, pady=5)
-        self.email_password = tk.Entry(form_frame, width=40, show="*")
-        self.email_password.insert(0, self.email_config["password"])
-        self.email_password.grid(row=3, column=1, sticky=tk.W, padx=5, pady=5)
-        
-        tk.Label(form_frame, text="送信元アドレス:").grid(row=4, column=0, sticky=tk.W, padx=5, pady=5)
-        self.email_sender = tk.Entry(form_frame, width=40)
-        self.email_sender.insert(0, self.email_config["sender"])
-        self.email_sender.grid(row=4, column=1, sticky=tk.W, padx=5, pady=5)
-        
-        # ボタンフレーム
-        button_frame = tk.Frame(settings_frame)
-        button_frame.pack(pady=20)
-        
-        save_btn = tk.Button(button_frame, text="設定を保存", 
-                          command=self.save_email_settings,
-                          bg="#4CAF50", fg="white",
-                          width=15, height=2)
-        save_btn.pack(side=tk.LEFT, padx=10)
-        
-        test_btn = tk.Button(button_frame, text="テストメール送信", 
-                          command=self.send_test_email,
-                          bg="#2196F3", fg="white",
-                          width=15, height=2)
-        test_btn.pack(side=tk.LEFT, padx=10)
-        
-        return_btn = tk.Button(button_frame, text="メニューに戻る", 
-                            command=self.create_menu_screen,
-                            bg="#F44336", fg="white",
-                            width=15, height=2)
-        return_btn.pack(side=tk.LEFT, padx=10)
-        
-        # キャンバスの内容のサイズが変わったときに、スクロール領域を調整
-        settings_frame.update_idletasks()
-        canvas.config(scrollregion=canvas.bbox("all"))
-        
-        # ウィンドウサイズに合わせてキャンバスの幅を調整
-        def _configure_canvas(event):
-            canvas.configure(scrollregion=canvas.bbox("all"))
-            canvas.itemconfig(canvas.find_withtag("all")[0], width=event.width)
-        
-        # マウスホイールでスクロールするイベントバインディング
-        def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-        
-        # イベントバインディングを設定
-        canvas.bind("<Configure>", _configure_canvas)
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)  # Windows
-    
-
- 
-
-    def send_test_email(self):
-        try:
-            # 一時的に設定を更新
-            temp_config = {
-                "username": self.email_username.get(),
-                "password": self.email_password.get(),
-                "sender": self.email_sender.get()
-            }
-            
-            # 元の設定を保存
-            original_config = self.email_config.copy()
-            self.email_config = temp_config
-            
-            # テストメールの宛先を取得
-            test_email = temp_config["username"]  # 設定したメールアドレスにテストメール
-            
-            # メール作成
-            msg = MIMEMultipart()
-            msg['From'] = self.email_config["sender"]
-            msg['To'] = test_email
-            msg['Date'] = formatdate()
-            msg['Subject'] = "ホテル管理システム - テストメール"
-            
-            body = """
-    これはホテル管理システムからのテストメールです。
-    メール設定が正常に機能していることを確認するためのメールです。
-
-    このメールが届いた場合、設定は正常です。
-            """
-            
-            msg.attach(MIMEText(body, 'plain', 'utf-8'))
-            
-            # SMTPサーバーに接続してメール送信
-            
-            messagebox.showinfo("成功", f"テストメールを {test_email} に送信しました。")
-            
-            # 設定を元に戻す
-            self.email_config = original_config
-            
-        except Exception as e:
-            messagebox.showerror("エラー", f"テストメール送信に失敗しました: {str(e)}")
-
-    # メニュー画面にメール設定ボタンを追加
-    def create_menu_screen(self):
-        # 以前の画面をクリア
-        for widget in self.root.winfo_children():
-            widget.destroy()
-            
-        # メインメニューフレームの作成
-        menu_frame = tk.Frame(self.root, padx=20, pady=20)
-        menu_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # タイトル
-        title_label = tk.Label(menu_frame, text="ホテル管理システム", font=("Helvetica", 18, "bold"))
-        title_label.pack(pady=20)
-        
-        # メニューボタン
-        btn_width = 30
-        btn_height = 2
-        
-        create_quote_btn = tk.Button(menu_frame, text="宿泊見積作成", width=btn_width, height=btn_height,
-                                    command=self.show_quote_screen, bg="#4CAF50", fg="white")
-        create_quote_btn.pack(pady=10)
-        
-        # メール設定ボタンを追加
-        email_settings_btn = tk.Button(menu_frame, text="メール設定", width=btn_width, height=btn_height,
-                                    command=self.show_email_settings, bg="#2196F3", fg="white")
-        email_settings_btn.pack(pady=10)
-        
-        exit_btn = tk.Button(menu_frame, text="終了", width=btn_width, height=btn_height,
-                            command=self.root.destroy, bg="#F44336", fg="white")
-        exit_btn.pack(pady=10) 
-    
 
 
 if __name__ == "__main__":
