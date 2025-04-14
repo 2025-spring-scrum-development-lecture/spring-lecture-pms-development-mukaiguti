@@ -17,18 +17,24 @@ try:
 except:
     pass
 
-class HotelManagementSystem:
+class HotelManagementSystem2(tk.Frame):
     def __init__(self, root):
+        super().__init__(root)  # 基底クラスの初期化
         self.root = root
         self.root.title("ホテル管理システム")
         self.root.geometry("1000x700")
-        self.config_file = "hotel_config.json"
-        
-         # 見積書保存用のディレクトリ
+
+        # フレームを正しく表示
+        self.pack(fill=tk.BOTH, expand=True)
+
+        # 他の初期化処理
         self.quotes_dir = "quotes"
         if not os.path.exists(self.quotes_dir):
             os.makedirs(self.quotes_dir)
-        
+
+        self.load_pricing_data()
+        self.show_quote_screen()
+
         # メール設定を固定値に設定（メール設定画面を削除）
         self.email_config = {
             "smtp_server": "smtp.gmail.com",
@@ -38,80 +44,84 @@ class HotelManagementSystem:
             "sender": "y.mukaiguchi.sys24@morijyobi.ac.jp"
         }
         
-        # 料金データの読み込み
-        self.load_pricing_data()
-        
-        self.show_quote_screen()
-        
+    # 料金データの読み込み
     def load_pricing_data(self):
         self.pricing = {
             "room_types": {
-                "1-2_和室": {"八幡ポーク": 12400, "岩手県産": 15400, "前沢牛": 18400, "和食膳": 20000, "素泊まり": 8500},
-                "2_西館和室": {"八幡ポーク": 12400, "岩手県産": 15400, "前沢牛": 18400, "素泊まり": None},
-                "2-5_岩手山側和室": {"八幡ポーク": 12400, "岩手県産": 15400, "前沢牛": 18400, "和食膳": 20000,  "素泊まり": None},
-                "2-5_岩手山側露天風呂付き和室": {"八幡ポーク": 14400, "岩手県産": 17400, "前沢牛": 20400, "和食膳": 22000, "素泊まり": None},
-                "2-6_西館和室10畳": {"八幡ポーク": 12400, "岩手県産": 15400, "前沢牛": 21400, "素泊まり": None},
-                "2-6_1F露天風呂付き和室": {"八幡ポーク": 15400, "岩手県産": 18400, "前沢牛": 21400, "素泊まり": None},
-                "2-6_1F西館和室": {"八幡ポーク": 12400, "岩手県産": 15400, "前沢牛": 21400, "素泊まり": None},
-                "2-6_西館和室28畳": {"八幡ポーク": 12400, "岩手県産": 15400, "前沢牛": 21400,"素泊まり": None},
+                "豪華コース": 21600,
+                "雅コース": 18600,
+                "錦コース": 15800,
+                "椿コース": 21600,
             },
-            "child_price": 7200,  
+            "meal_plan": {
+                "八幡平牛ロースのしゃぶしゃぶ": 4000,
+                "大更ホルモン鍋": 1100,
+                "岩手県産牛の串焼き": 750,
+                "飲み放題": 2800,
+            },
+            "child_price": 7200,
             "early_booking_discount": {
-                60: 0.10,  # 60日前: 10%割引
-                90: 0.15   # 90日前: 15%割引
+                60: 0.10,
+                90: 0.15,
             },
-            "saturday_surcharge": 2000  # 土曜日追加料金
+            "saturday_surcharge": 2000
         }
-    
-    
+
     def show_quote_screen(self):
-        for widget in self.root.winfo_children():
+        # 現在のウィジェットをすべて削除
+        for widget in self.winfo_children():
             widget.destroy()
-        # メインフレーム
-        quote_frame = tk.Frame(self.root, padx=20, pady=20)
-        quote_frame.pack(fill=tk.BOTH, expand=True)
-
-        # Canvasの作成
-        canvas = tk.Canvas(quote_frame)
-        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-        # スクロールバーの作成
-        scrollbar = tk.Scrollbar(quote_frame, orient=tk.VERTICAL, command=canvas.yview)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
-        canvas.configure(yscrollcommand=scrollbar.set)
-
-        # コンテンツフレームをCanvas内に作成
-        content_frame = tk.Frame(canvas)
-        window_id = canvas.create_window((0, 0), window=content_frame, anchor="n")
-
-        # スクロール範囲を更新
-        def update_scroll_region(event=None):
-            canvas.configure(scrollregion=canvas.bbox("all"))
-
-        content_frame.bind("<Configure>", update_scroll_region)
-        
-        def on_mouse_wheel(event):
-            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-
-        self.root.bind_all("<MouseWheel>", on_mouse_wheel)  
-        def center_content_frame():
-            canvas_width = canvas.winfo_width()
-            content_width = content_frame.winfo_reqwidth()
-            x_position = (canvas_width - content_width) / 2
-            canvas.coords(window_id, x_position, 0)
-
-        canvas.bind("<Configure>", lambda event: center_content_frame())
 
         # タイトル
-        title_label = tk.Label(content_frame, text="宿泊見積画面", font=("Helvetica", 16, "bold"))
+        title_label = tk.Label(self, text="宴会見積画面", font=("Helvetica", 16, "bold"))
         title_label.pack(pady=10)
 
+        # メインフレーム作成（スクロール可能なコンテンツ用）
+        main_frame = tk.Frame(self)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=300, pady=20)
+
+        # Canvas作成
+        self.canvas = tk.Canvas(main_frame)
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+
+        # スクロールバーの作成と設定
+        scrollbar = ttk.Scrollbar(main_frame, orient=tk.VERTICAL, command=self.canvas.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # CanvasとScrollbarを連動
+        self.canvas.configure(yscrollcommand=scrollbar.set)
+        self.canvas.bind('<Configure>', lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
+
+        # スクロール可能なフレームをCanvas内に作成
+        content_frame = tk.Frame(self.canvas)
+        self.canvas_window = self.canvas.create_window((0, 0), window=content_frame, anchor="n", width=self.canvas.winfo_width())
+
+        # Canvasのサイズが変更されたときにウィンドウサイズも調整
+        def _configure_canvas(event):
+            if content_frame.winfo_reqheight() > event.height:
+                # コンテンツが縦に大きい場合はスクロール領域を設定
+                self.canvas.itemconfigure(self.canvas_window, width=event.width - 5)
+                self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+            else:
+                # コンテンツが小さい場合はスクロールバーを表示しない
+                self.canvas.itemconfigure(self.canvas_window, width=event.width - 5)
+                self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+        self.canvas.bind('<Configure>', _configure_canvas)
+
+        # マウスホイールでスクロール
+        def _on_mousewheel(event):
+            self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        self.canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        
+        
         # お客様情報フレーム
         customer_frame = tk.LabelFrame(content_frame, text="お客様情報", padx=10, pady=10)
         customer_frame.pack(fill=tk.X, pady=10)
 
-        # お客様情報のグリッド
+        # グリッドレイアウトのお客様情報
         customer_grid = tk.Frame(customer_frame)
         customer_grid.pack(fill=tk.X, padx=5, pady=5)
 
@@ -119,66 +129,83 @@ class HotelManagementSystem:
         self.customer_name = tk.Entry(customer_grid, width=30)
         self.customer_name.grid(row=0, column=1, sticky=tk.W, padx=5, pady=5)
 
-        tk.Label(customer_grid, text="電話番号:").grid(row=0, column=2, sticky=tk.W, padx=5, pady=5)
-        self.customer_phone = tk.Entry(customer_grid, width=20)
-        self.customer_phone.grid(row=0, column=3, sticky=tk.W, padx=5, pady=5)
-
-        tk.Label(customer_grid, text="メール:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+        tk.Label(customer_grid, text="電話番号:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+        self.customer_phone = tk.Entry(customer_grid, width=30)
+        self.customer_phone.grid(row=1, column=1, sticky=tk.W, padx=5, pady=5)
+        
+        tk.Label(customer_grid, text="メール:").grid(row=1, column=2, sticky=tk.W, padx=5, pady=5)
         self.customer_email = tk.Entry(customer_grid, width=30)
-        self.customer_email.grid(row=1, column=1, sticky=tk.W, padx=5, pady=5)
-
+        self.customer_email.grid(row=1, column=3, sticky=tk.W, padx=5, pady=5)
 
         # 予約詳細フレーム
         res_frame = tk.LabelFrame(content_frame, text="予約詳細", padx=10, pady=10)
         res_frame.pack(fill=tk.X, pady=10)
 
+        # 予約内容のグリッド
         res_grid = tk.Frame(res_frame)
         res_grid.pack(fill=tk.X, padx=5, pady=5)
 
-        tk.Label(res_grid, text="チェックイン日:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
-        self.checkin_date = tk.Entry(res_grid, width=15)
-        self.checkin_date.grid(row=0, column=1, sticky=tk.W, padx=5, pady=5)
+        # チェックイン/チェックアウト日
+        date_frame = tk.Frame(res_grid)
+        date_frame.grid(row=0, column=0, columnspan=4, sticky=tk.W, padx=5, pady=5)
+
+        tk.Label(date_frame, text="チェックイン日:").grid(row=0, column=0, padx=5, pady=5)
+        self.checkin_date = tk.Entry(date_frame, width=15)
+        self.checkin_date.grid(row=0, column=1, padx=5, pady=5)
         self.checkin_date.insert(0, datetime.datetime.now().strftime("%Y/%m/%d"))
 
-        tk.Label(res_grid, text="チェックアウト日:").grid(row=0, column=2, sticky=tk.W, padx=5, pady=5)
-        self.checkout_date = tk.Entry(res_grid, width=15)
-        self.checkout_date.grid(row=0, column=3, sticky=tk.W, padx=5, pady=5)
 
-        tk.Label(res_grid, text="部屋タイプ:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
-        self.room_type = ttk.Combobox(res_grid, width=25, state="readonly")
-        self.room_type["values"] = list(self.pricing["room_types"].keys())
-        self.room_type.current(0)
-        self.room_type.grid(row=1, column=1, sticky=tk.W, padx=5, pady=5)
+        # 部屋タイプ
+        room_frame = tk.Frame(res_grid)
+        room_frame.grid(row=1, column=0, columnspan=4, sticky=tk.W, padx=5, pady=5)
 
-        tk.Label(res_grid, text="食事プラン:").grid(row=1, column=2, sticky=tk.W, padx=5, pady=5)
-        self.meal_plan = ttk.Combobox(res_grid, width=15, state="readonly")
-        self.meal_plan["values"] = ["八幡ポーク", "岩手県産", "前沢牛","和食膳", "素泊まり"]
-        self.meal_plan.current(0)
-        self.meal_plan.grid(row=1, column=3, sticky=tk.W, padx=5, pady=5)
+        tk.Label(room_frame, text="宴会コース:").grid(row=0, column=0, padx=5, pady=5)
+        self.room_type = tk.StringVar()
+        room_type_combo = ttk.Combobox(room_frame, textvariable=self.room_type, width=15)
+        room_type_combo["values"] = list(self.pricing["room_types"].keys())
+        room_type_combo.grid(row=0, column=1, padx=5, pady=5)
+        room_type_combo.current(0)
 
-        tk.Label(res_grid, text="大人人数:").grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
-        self.num_adults = ttk.Spinbox(res_grid, from_=1, to=10, width=5)
+        # 食事プラン
+        meal_frame = tk.Frame(res_grid)
+        meal_frame.grid(row=2, column=0, columnspan=4, sticky=tk.W, padx=5, pady=5)
+
+        tk.Label(meal_frame, text="追加料金:").grid(row=0, column=0, padx=5, pady=5)
+        self.meal_options = list(self.pricing["meal_plan"].keys())
+        self.meal_vars = [tk.BooleanVar() for _ in self.meal_options]
+        
+        # 食事プランのチェックボックスを2列に配置
+        for i, meal in enumerate(self.meal_options):
+            row = i // 2  # 2列に分ける
+            col = i % 2 + 1  # 1列目はラベル用なので+1
+            tk.Checkbutton(meal_frame, text=meal, variable=self.meal_vars[i]).grid(row=row, column=col, sticky=tk.W, padx=5, pady=2)
+
+        # 人数
+        people_frame = tk.Frame(res_grid)
+        people_frame.grid(row=3, column=0, columnspan=4, sticky=tk.W, padx=5, pady=5)
+
+        tk.Label(people_frame, text="大人:").grid(row=0, column=0, padx=5, pady=5)
+        self.num_adults = ttk.Spinbox(people_frame, from_=1, to=10, width=5)
         self.num_adults.set(2)
-        self.num_adults.grid(row=2, column=1, sticky=tk.W, padx=5, pady=5)
+        self.num_adults.grid(row=0, column=1, padx=5, pady=5)
 
-        tk.Label(res_grid, text="子供人数:").grid(row=2, column=2, sticky=tk.W, padx=5, pady=5)
-        self.num_children = ttk.Spinbox(res_grid, from_=0, to=10, width=5)
+        tk.Label(people_frame, text="子供:").grid(row=0, column=2, padx=5, pady=5)
+        self.num_children = ttk.Spinbox(people_frame, from_=0, to=10, width=5)
         self.num_children.set(0)
-        self.num_children.grid(row=2, column=3, sticky=tk.W, padx=5, pady=5)
+        self.num_children.grid(row=0, column=3, padx=5, pady=5)
 
         # 計算ボタン
-        calculate_btn = tk.Button(content_frame, text="見積計算", command=self.calculate_quote, bg="#4CAF50", fg="white", width=20, height=2)
+        calculate_btn = tk.Button(content_frame, text="料金計算", command=self.calculate_quote, bg="#4CAF50", fg="white", width=20, height=2)
         calculate_btn.pack(pady=10)
 
-        # 結果フレーム
+        # 結果表示
         results_frame = tk.LabelFrame(content_frame, text="見積結果", padx=10, pady=10)
         results_frame.pack(fill=tk.X, pady=10)
 
-        self.results_text = tk.Text(results_frame, height=10, width=80)
+        self.results_text = tk.Text(results_frame, height=10, width=80, state="disabled")
         self.results_text.pack(padx=10, pady=10)
         self.results_text.configure(state="disabled")
         
-
         # ボタンフレーム
         buttons_frame = tk.Frame(content_frame)
         buttons_frame.pack(fill=tk.X, pady=10)
@@ -188,86 +215,86 @@ class HotelManagementSystem:
 
         return_btn = tk.Button(buttons_frame, text="メニューに戻る", command=self.create_menu_screen, bg="#F44336", fg="white", width=15, height=2)
         return_btn.pack(side=tk.RIGHT, padx=10)
-
     
     def calculate_quote(self):
-        self.results_text.configure(state="normal")
         try:
-            # 選択された値を取得
             room_type = self.room_type.get()
-            meal_plan = self.meal_plan.get()
             num_adults = int(self.num_adults.get())
             num_children = int(self.num_children.get())
-            
-            # 日付の取得
             checkin = datetime.datetime.strptime(self.checkin_date.get(), "%Y/%m/%d")
-            checkout = datetime.datetime.strptime(self.checkout_date.get(), "%Y/%m/%d") if self.checkout_date.get() else checkin + datetime.timedelta(days=1)
-            
-            # 宿泊日数の計算
-            nights = (checkout - checkin).days
-            if nights <= 0:
-                messagebox.showerror("エラー", "チェックアウト日はチェックイン日より後である必要があります。")
-                return
-            
-            # 基本料金の計算
 
-            base_cost_per_adult = self.pricing["room_types"][room_type][meal_plan]
+            base_cost_per_adult = self.pricing["room_types"][room_type]
             child_cost = self.pricing["child_price"]
-            
-            # 早期予約割引のチェック
+
+            meal_plan_cost = sum(
+                self.pricing["meal_plan"][meal] for i, meal in enumerate(self.meal_options) if self.meal_vars[i].get()
+            )
+
             today = datetime.datetime.today()
             days_until_checkin = (checkin - today).days
-            
             discount_rate = 0
             if days_until_checkin >= 90:
                 discount_rate = self.pricing["early_booking_discount"][90]
             elif days_until_checkin >= 60:
                 discount_rate = self.pricing["early_booking_discount"][60]
-            
-            # 土曜日追加料金のチェック
-            saturday_surcharge = 0
-            current_date = checkin
-            for _ in range(nights):
-                if current_date.weekday() == 5:  # 土曜日は5
-                    saturday_surcharge += self.pricing["saturday_surcharge"] * (num_adults + num_children)
-                current_date += datetime.timedelta(days=1)
-            
-            # 合計料金の計算
-            adult_cost = base_cost_per_adult * num_adults * nights
-            children_cost = child_cost * num_children * nights
+
+
+            while True:
+                try:
+                    today_str = self.checkin_date.get()  # 文字列型の日付を取得
+                    print(f"入力された日付（文字列）: {today_str}")  # デバッグ用出力
+
+                    # 文字列型を datetime.date 型に変換
+                    today = datetime.datetime.strptime(today_str, "%Y/%m/%d").date()
+                    print(f"今日の日付: {today}, 曜日: {today.weekday()}")  # 日付と曜日を表示
+
+                    # 土曜日判定
+                    if today.weekday() == 5:  # 土曜日の場合
+                        saturday_surcharge = 2000
+                        print("土曜日料金: 2000円")
+                    else:
+                        saturday_surcharge = 0
+                        print("土曜日料金: 0円")
+
+                    # 正常に処理が完了したらループ終了
+                    break
+                except ValueError:
+                    # 日付形式が正しくない場合
+                    print("正しい日付形式（YYYY/MM/DD）で入力してください。")
+                    break
+
+
+            adult_cost = (base_cost_per_adult + meal_plan_cost) * num_adults
+            children_cost = child_cost * num_children
             total_before_discount = adult_cost + children_cost + saturday_surcharge
             discount_amount = total_before_discount * discount_rate
             total_after_discount = total_before_discount - discount_amount
             
-            # 結果の表示
-            result = f"見積詳細:\n\n"
-            result += f"部屋タイプ: {room_type}\n"
-            result += f"食事プラン: {meal_plan}\n"
-            result += f"滞在期間: {checkin.strftime('%Y年%m月%d日')} から {checkout.strftime('%Y年%m月%d日')} ({nights}泊)\n"
-            result += f"大人: {num_adults}人 × {base_cost_per_adult:,}円 × {nights}泊 = {adult_cost:,}円\n"
-            
+
+
+
+            result = f"見積詳細:\n\n部屋タイプ: {room_type}\n"
+            result += f"大人: {num_adults}人 × ({base_cost_per_adult:,}円 + 追加料金 {meal_plan_cost:,}円)\n"
             if num_children > 0:
-                result += f"子供: {num_children}人 × {child_cost:,}円 × {nights}泊 = {children_cost:,}円\n"
-            
+                result += f"子供: {num_children}人 × {child_cost:,}円\n"
             if saturday_surcharge > 0:
                 result += f"土曜日追加料金: {saturday_surcharge:,}円\n"
-            
+
             result += f"\n小計: {total_before_discount:,}円\n"
-            
+
             if discount_rate > 0:
                 result += f"早期予約割引 ({discount_rate*100:.0f}%): -{discount_amount:,}円\n"
-            
+
             result += f"\n合計: {total_after_discount:,}円 (税込)"
-            
-            # 結果テキストウィジェットの更新
+
+            # 結果をテキストウィジェットに表示
+            self.results_text.configure(state="normal")
             self.results_text.delete(1.0, tk.END)
             self.results_text.insert(tk.END, result)
             self.results_text.configure(state="disabled")
             
-            # 見積結果を保存（メール送信時に使用）
             self.quote_result = result
             
-            # JSONに保存するための詳細情報を保存
             self.quote_details = {
                 "customer": {
                     "name": self.customer_name.get(),
@@ -276,10 +303,8 @@ class HotelManagementSystem:
                 },
                 "reservation": {
                     "room_type": room_type,
-                    "meal_plan": meal_plan,
+                    "meal_plan": meal_plan_cost,
                     "checkin": checkin.strftime("%Y-%m-%d"),
-                    "checkout": checkout.strftime("%Y-%m-%d"),
-                    "nights": nights,
                     "adults": num_adults,
                     "children": num_children
                 },
@@ -303,14 +328,10 @@ class HotelManagementSystem:
                 "customer_email": self.customer_email.get(),
                 "total_price": f"{total_after_discount:,}円"
             }
-            
+
         except Exception as e:
             messagebox.showerror("エラー", f"計算中にエラーが発生しました: {str(e)}")
-            self.results_text.configure(state="disabled")
-    # 設定ファイル関連のメソッドは残すが、簡略化する
-    def load_email_config(self):
-        # メール設定は固定のため、設定ファイルからの読み込みは行わない
-        pass
+            
 
     def save_email_config(self):
         # メール設定は固定のため、設定ファイルへの保存は行わない
@@ -339,7 +360,7 @@ class HotelManagementSystem:
         except Exception as e:
             print(f"見積書保存エラー: {str(e)}")
             return False
-
+        
     def send_email_quote(self):
         # メールアドレスが入力されているか確認
         customer_email = self.customer_email.get().strip()
@@ -358,14 +379,14 @@ class HotelManagementSystem:
             msg['From'] = self.email_config["sender"]
             msg['To'] = customer_email
             msg['Date'] = formatdate()
-            msg['Subject'] = f"【ホテル予約】{self.customer_name.get()} 様 宿泊見積"
+            msg['Subject'] = f"【ホテル予約】{self.customer_name.get()} 様 宴会見積"
               
             # メール本文の作成
             body = f"""
 {self.customer_name.get()} 様
 
 この度はお問い合わせいただき、誠にありがとうございます。
-ご希望の宿泊プランの見積をお送りいたします。
+ご希望の宴会プランの見積をお送りいたします。
 
 ====================
 {self.quote_result}
@@ -398,7 +419,6 @@ Email: {self.email_config["sender"]}
         except Exception as e:
             messagebox.showerror("エラー", f"メール送信中にエラーが発生しました: {str(e)}")
             return False
-
             
     def show_quote_sent(self):
         # メール送信を試みる
@@ -415,11 +435,11 @@ Email: {self.email_config["sender"]}
             return
         
         # 以前の画面をクリア
-        for widget in self.root.winfo_children():
+        for widget in self.winfo_children():
             widget.destroy()
             
         # 確認画面の作成
-        conf_frame = tk.Frame(self.root, padx=200, pady=20)
+        conf_frame = tk.Frame(self, padx=20, pady=20)
         conf_frame.pack(fill=tk.BOTH, expand=True)
         
         # 成功メッセージ
@@ -451,32 +471,25 @@ Email: {self.email_config["sender"]}
         return_btn.pack(pady=20)
         
     def create_menu_screen(self):
-        for widget in self.root.winfo_children():
+        for widget in self.winfo_children():
             widget.destroy()
         Menu(self.root)
+
+# メニュークラスが不明な場合に備えて簡易実装
+class SimpleMenu(tk.Frame):
+    def __init__(self, root):
+        super().__init__(root)
+        self.root = root
+        self.pack(fill=tk.BOTH, expand=True)
+        tk.Label(self, text="メニュー画面", font=("Helvetica", 16, "bold")).pack(pady=20)
+        tk.Button(self, text="見積作成に戻る", command=self.return_to_quote).pack(pady=10)
+    
+    def return_to_quote(self):
+        for widget in self.winfo_children():
+            widget.destroy()
+        HotelManagementSystem2(self.root)
         
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = HotelManagementSystem(root)
-    root.mainloop()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    root = tk.Tk()  # 親ウィジェットを作成
+    app = HotelManagementSystem2(root)  # 親ウィジェットを渡して初期化
+    root.mainloop()  # メインループを開始
