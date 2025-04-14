@@ -32,7 +32,7 @@ class Menu:
         create_quote_btn.pack(pady=10)
         
         create_quote_btn = tk.Button(menu_frame, text="宴会見積作成", width=btn_width, height=btn_height,
-                                    command=self.show_enkai_screen, bg="skyblue", fg="white")
+                                    command=self.show_enkai_screen2, bg="skyblue", fg="white")
         create_quote_btn.pack(pady=10)
         
         exit_btn = tk.Button(menu_frame, text="終了", width=btn_width, height=btn_height,command=self.root.destroy,
@@ -44,9 +44,13 @@ class Menu:
         for widget in self.root.winfo_children():
             widget.destroy()
         HotelManagementSystem(self.root)
+        
     
-    def show_enkai_screen(self):
-        pass
+    def show_enkai_screen2(self):
+        from enkai import HotelManagementSystem2
+        for widget in self.root.winfo_children():
+            widget.destroy()
+        HotelManagementSystem2(self.root)
 
 if __name__ == "__main__":
     root = tk.Tk()
